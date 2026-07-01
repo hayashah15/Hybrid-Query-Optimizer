@@ -2,7 +2,7 @@
 Adaptive Execution Planning for Hybrid Relational-Vector Workloads using PostgreSQL and pgvector
 ## Team Members
 
-- Haya Shah (Project Lead)
+- Haya Shah 
 - Dipesh Adhikari
 - Uday Kumar Reddy
 - Pratyush Sundaram
