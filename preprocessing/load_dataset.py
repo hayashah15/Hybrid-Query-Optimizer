@@ -1,36 +1,104 @@
-"""
-Module: Load Dataset
-Description: Loads a CSV dataset into a pandas DataFrame.
-"""
+import csv
+from sentence_transformers import SentenceTransformer
+from psycopg2.extras import execute_values
+from database.db_connection import get_connection
 
-import pandas as pd
+model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
 
+def derive_category(text: str) -> str:
+    t = text.lower()
 
-def load_dataset(file_path):
-    """
-    Load a dataset from a CSV file.
+    if any(w in t for w in [
+        "database", "postgres", "sql", "server", "query", "index", "transaction",
+        "schema", "table", "vector", "pgvector"
+    ]):
+        return "database"
 
-    Parameters:
-        file_path (str): Path to the CSV file.
+    if any(w in t for w in [
+        "health", "medical", "doctor", "hospital", "patient", "disease",
+        "clinic", "nurse", "surgery", "treatment"
+    ]):
+        return "health"
 
-    Returns:
-        pandas.DataFrame or None:
-            Returns the dataset if loaded successfully,
-            otherwise returns None.
-    """
-    try:
-        data = pd.read_csv(file_path)
+    if any(w in t for w in [
+        "sport", "sports", "game", "player", "team", "coach",
+        "match", "tournament", "football", "basketball", "soccer", "cricket"
+    ]):
+        return "sports"
 
-        print("\nDataset loaded successfully.")
-        print("Rows    :", data.shape[0])
-        print("Columns :", data.shape[1])
+    if any(w in t for w in [
+        "government", "election", "president", "prime minister", "parliament",
+        "policy", "democracy", "campaign", "senate", "congress"
+    ]):
+        return "politics"
 
-        return data
+    if any(w in t for w in [
+        "school", "university", "college", "student", "teacher",
+        "education", "classroom", "course", "exam"
+    ]):
+        return "education"
 
-    except FileNotFoundError:
-        print("Error: Dataset file not found.")
-        return None
+    if any(w in t for w in [
+        "money", "finance", "bank", "market", "stock", "investment",
+        "economy", "economic", "loan", "interest rate", "business", "company"
+    ]):
+        return "finance"
 
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return None
+    if any(w in t for w in [
+        "science", "experiment", "research", "physics", "chemistry",
+        "biology", "laboratory", "atom", "nuclear", "climate", "environment"
+    ]):
+        return "science"
+
+    return "general"
+
+def load_local_sample(csv_path="data/processed/msmarco_30k.csv", chunk_size=200, batch_size=8):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    rows = []
+    with open(csv_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for record in reader:
+            text = record["text"].strip()
+            if text:
+                rows.append(text)
+
+    total = len(rows)
+    inserted = 0
+
+    for i in range(0, total, chunk_size):
+        chunk_texts = rows[i:i + chunk_size]
+        categories = [derive_category(t) for t in chunk_texts]
+
+        embeddings = model.encode(
+            chunk_texts,
+            batch_size=batch_size,
+            show_progress_bar=True,
+            convert_to_numpy=True
+        )
+
+        data = [
+            (text, category, False, emb.tolist())
+            for text, category, emb in zip(chunk_texts, categories, embeddings)
+        ]
+
+        execute_values(
+            cur,
+            """
+            INSERT INTO passages (text, category, is_relevant, embedding)
+            VALUES %s
+            """,
+            data
+        )
+
+        conn.commit()
+        inserted += len(data)
+        print(f"Inserted {inserted}/{total}")
+
+    cur.close()
+    conn.close()
+    print(f"Done. Total inserted: {inserted}")
+
+if __name__ == "__main__":
+    load_local_sample()
