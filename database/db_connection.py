@@ -1,31 +1,16 @@
-"""
-Module: Database Connection
-Description:
-Creates a PostgreSQL database connection.
-"""
-
+import os
 import psycopg2
+from dotenv import load_dotenv
 
+load_dotenv()
 
-def create_connection():
+DB_CONFIG = {
+    "host": os.environ.get("DB_HOST", "127.0.0.1"),
+    "port": os.environ.get("DB_PORT", "5432"),
+    "dbname": os.environ.get("DB_NAME", "hybrid_db"),
+    "user": os.environ.get("DB_USER", "postgres"),
+    "password": os.environ.get("DB_PASSWORD", "")
+}
 
-    try:
-
-        connection = psycopg2.connect(
-            host="localhost",
-            database="hybrid_query",
-            user="postgres",
-            password="password",
-            port="5432"
-        )
-
-        print("Database connected successfully.")
-
-        return connection
-
-    except Exception as error:
-
-        print("Database Connection Error:")
-        print(error)
-
-        return None
+def get_connection():
+    return psycopg2.connect(**DB_CONFIG)

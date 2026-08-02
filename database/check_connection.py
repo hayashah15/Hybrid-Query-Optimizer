@@ -1,18 +1,18 @@
-"""
-Module: Check Database Connection
-"""
+from db_connection import get_connection
 
-from db_connection import create_connection
+def check_connection():
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT version();")
+        version = cur.fetchone()
+        print(f"Connected successfully: {version[0]}")
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Connection failed: {e}")
+        return False
 
-
-connection = create_connection()
-
-if connection:
-
-    print("Database is ready.")
-
-    connection.close()
-
-else:
-
-    print("Unable to connect to the database.")
+if __name__ == "__main__":
+    check_connection()
