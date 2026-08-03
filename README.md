@@ -1,7 +1,12 @@
 # Hybrid Query Optimizer — Adaptive Query Optimization for Hybrid Relational–Vector Workloads
 
-COMP 8157 · Advanced Database Topics · University of Windsor · Summer 2026
+COMP 8157 · Advanced Database Topics · University of Windsor · Summer 2026  
 Prepared by: Dipesh Adhikari, Haya Shah, Pratyush Sundaram, Uday Kumar Reddy
+
+## 📌 Project Portal Links (Grading)
+- **Project Management Tool:** [Hive Workspace](https://app.hive.com/workspace/rdn2QoFgeTpGdxWEQ?projectId=kpQnLkdBW9XXovH4F)
+- **Cloud Platform UI Preview:** [https://hybrid-query-optimizer.onrender.com](https://hybrid-query-optimizer.onrender.com)
+  *(Note: Due to Render's free-tier 512MB RAM limit, live search execution causes an OOM error when loading the PyTorch model. Please run locally for full end-to-end functionality as detailed in our D.4.4 Deployment Document).*
 
 ## Overview
 
@@ -15,7 +20,7 @@ category, and see which strategy was selected along with the retrieved passages.
 
 ## Project Structure
 
-```
+```text
 Hybrid-Query-Optimizer/
 ├── database/
 │   ├── db_connection.py       # DB connection using environment variables
@@ -42,10 +47,34 @@ Hybrid-Query-Optimizer/
 └── README.md
 ```
 
+## Database Schema & Connection
+*Note on Existing Database: Due to the high compute costs associated with hosting a live PostgreSQL database with vector extensions, there is no permanently hosted cloud database instance for this project. Graders must provision their own local PostgreSQL database following the connection and setup steps below.*
+
+This project requires **PostgreSQL 15+** with the **pgvector** extension installed.
+
+### Schema
+Our core data is stored using the `pgvector` extension. The primary schema configuration is as follows:
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE passages (
+    id SERIAL PRIMARY KEY,
+    text TEXT NOT NULL,
+    category TEXT,
+    is_relevant BOOLEAN,
+    embedding vector(384)
+);
+
+CREATE INDEX ON passages (category);
+```
+
+### Connection Instructions
+Database connections are managed via `psycopg2`. See the Setup section below for instructions on how to configure your `.env` file to connect to your local instance.
+
 ## Prerequisites
 
 - Python 3.10+
-- PostgreSQL 14+ with the `pgvector` extension available
+- PostgreSQL 15+ with the `pgvector` extension available
 - pip / virtualenv
 
 ## Setup
@@ -60,7 +89,7 @@ cd Hybrid-Query-Optimizer
 ### 2. Create a virtual environment and install dependencies
 
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate   # on Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
@@ -75,7 +104,7 @@ cp .env.example .env
 
 Edit `.env`:
 
-```
+```env
 DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_NAME=hybrid_db
@@ -87,20 +116,25 @@ DB_PASSWORD=your_password_here
 
 ```bash
 createdb hybrid_db
-python database/create_tables.py
+python3 database/create_tables.py
 ```
 
 Verify the connection at any time with:
 
 ```bash
-python database/check_connection.py
+python3 database/check_connection.py
 ```
 
-### 5. Build the dataset and load it
+## 📊 Dataset Information
+* **Repository Location (Ready to Use):** The pre-processed dataset is included directly in this repository at `data/processed/msmarco_30k.csv`. Graders **do not** need to download any external data to run the application.
+* **Original Source:** [BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models](https://github.com/UKPLab/beir) (Thakur et al., 2021). 
+* **Upstream Download Link:** The raw corpus was originally retrieved via the official [BeIR Hugging Face Repository](https://huggingface.co/BeIR).
+* **Subset Details:** We sampled a subset of 30,000 passages from the original 8.8-million-row MS MARCO dataset to simulate a realistic search environment while remaining feasible for local database insertion and grading.
 
+To process and load the data into your database, run:
 ```bash
-python preprocessing/msmarco_subset.py
-python preprocessing/load_dataset.py
+python3 preprocessing/msmarco_subset.py
+python3 preprocessing/load_dataset.py
 ```
 
 This generates 384-dimensional embeddings using `all-MiniLM-L6-v2` and inserts each
@@ -111,13 +145,13 @@ passage, category, relevance flag, and embedding into the `passages` table.
 ### CLI demo
 
 ```bash
-python backend/demo.py
+python3 backend/demo.py
 ```
 
 ### Benchmark
 
 ```bash
-python backend/benchmark.py
+python3 backend/benchmark.py
 ```
 
 Reports query text, filter category, estimated selectivity, selected strategy, execution
@@ -126,7 +160,7 @@ time, and rows returned for each query in the workload.
 ### Web UI
 
 ```bash
-python frontend/app.py
+python3 frontend/app.py
 ```
 
 Then open `http://127.0.0.1:5000` in a browser. Enter a natural-language query, optionally
@@ -142,14 +176,8 @@ select a category filter, and view the retrieved passages along with the strateg
    category cardinality) and picks whichever strategy is expected to be more efficient for
    that query, logging the decision for later benchmarking.
 
-## Testing
-
-```bash
-python -m pytest backend/test_backend.py
-```
-
 ## Notes
 
 This is an academic prototype scoped to a single-machine, laptop-scale corpus
-(~20k rows) and is not intended for production deployment, concurrent multi-user
+(~30k rows) and is not intended for production deployment, concurrent multi-user
 serving, or the full 8.8-million-row MS MARCO corpus.
