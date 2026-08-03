@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 import sys
-from sentence_transformers import SentenceTransformer
 from database.db_connection import get_connection
 from backend.hybrid_search import choose_strategy
 
-model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+_model = None
+
+def get_model():
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer('all-MiniLM-L6-v2')
+    return _model
+
 
 def run_filter_first(cur, embedding, category, top_k):
     cur.execute("""
@@ -33,7 +40,7 @@ def run_vector_first(cur, embedding, category, top_k):
     return rows
 
 def run_query(query_text, category=None, top_k=5):
-    embedding = model.encode(query_text).tolist()
+    embedding = get_model().encode(query_text).tolist()
     conn = get_connection()
     cur = conn.cursor()
 
