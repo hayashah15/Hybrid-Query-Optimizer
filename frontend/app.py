@@ -1,6 +1,6 @@
 import os
 
-os.environ["PYTORCH_JIT"] = "O"
+os.environ["PYTORCH_JIT"] = "0"
 os.environ["TORCH_COMPILE_DISABLE"]="1"
 
 from flask import Flask, render_template, request, jsonify
