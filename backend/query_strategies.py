@@ -1,12 +1,18 @@
 import time
-from sentence_transformers import SentenceTransformer
 from database.db_connection import get_connection
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+_model = None
+
+def get_model():
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer('all-MiniLM-L6-v2')
+    return _model
 
 
 def embed_query(text):
-    return model.encode(text).tolist()
+    return get_model().encode(text).tolist()
 
 
 def filter_first(query_text, category, top_k=5):

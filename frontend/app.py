@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify
 import time
-from sentence_transformers import SentenceTransformer
 from database.db_connection import get_connection
 from backend.hybrid_search import choose_strategy
 from backend.sql_search import run_filter_first
@@ -8,9 +7,16 @@ from backend.vector_search import run_vector_first
 
 app = Flask(__name__)
 
-print("Loading embedding model...")
-model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
-print("Model loaded.")
+_model = None
+
+def get_model():
+    global _model
+    if _model is None:
+        print("Loading embedding model...")
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+        print("Model loaded.")
+    return _model
 
 CATEGORIES = ["database", "health", "sports", "politics", "education", "finance", "science", "general"]
 
@@ -31,7 +37,7 @@ def search():
         return jsonify({"error": "Query text is required."}), 400
 
     t_embed_start = time.perf_counter()
-    embedding = model.encode(query_text).tolist()
+    embedding = get_model().encode(query_text).tolist()   # <-- changed from model.encode(...)
     t_embed = time.perf_counter() - t_embed_start
 
     if category:
